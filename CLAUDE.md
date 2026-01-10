@@ -61,9 +61,63 @@ cd ml/ocr && python -m uvicorn main:app --reload
 cd ml/liveness && python -m uvicorn main:app --reload
 ```
 
-## Development Guidelines
+## Development Rules
 
-### Security First
+### MANDATORY - Read Before Any Work
+
+These rules are non-negotiable. Every PR must comply.
+
+### Code Standards
+
+- **500 lines max per file** - no exceptions, split if needed
+- **Go**: `gofmt` + `golangci-lint` must pass
+- **Python**: `ruff` must pass
+- **No code without tests**
+
+### Testing Requirements
+
+- **80% coverage overall** - enforced in CI
+- **100% coverage on critical paths** (verification, auth, crypto)
+- **Integration tests for every external API endpoint**
+- **CI must pass before merge** - no exceptions
+
+### API Contracts
+
+- **External APIs**: OpenAPI/Swagger specification required
+  - Spec lives in `docs/specs/openapi/`
+  - Generate docs before PR
+- **Internal services**: gRPC/Protocol Buffers
+  - Proto files in `proto/`
+  - Generated code committed
+
+### Documentation Requirements
+
+- **PRD required before building features** - `docs/prd/`
+- **Specs define contracts** - `docs/specs/`
+- **ADRs for architectural decisions** - `docs/adr/`
+- **OpenAPI for every external endpoint** - no undocumented APIs
+
+### Work Tracking
+
+- **Issues tracked in JSON** - `.issues/issues.json`
+- **One item per issue** - discrete, iterable
+- **Plans before implementation** - use plan mode
+
+### Git Workflow
+
+- **`main` is protected** - no direct pushes
+- **All changes via PR** - with passing CI
+- **Conventional commits required**
+
+### Dependencies
+
+- **Go**: commit `go.sum`
+- **Python**: use lock file (uv.lock or requirements.lock)
+- **No vendoring**
+
+---
+
+## Security First
 
 This is identity infrastructure. Security is paramount:
 - Never log PII (names, ID numbers, biometrics)
@@ -72,26 +126,28 @@ This is identity infrastructure. Security is paramount:
 - Validate all inputs aggressively
 - Audit log all verification attempts
 
-### Privacy by Design
+## Privacy by Design
 
 - Delete raw images after processing
 - Store only hashes and embeddings, not raw biometrics
 - Implement data retention policies
 - Support user data deletion requests
 
-### API Design
+## API Design
 
 - All endpoints versioned (`/v1/`, `/v2/`)
-- Use Protocol Buffers for request/response
+- External: OpenAPI/REST
+- Internal: gRPC/Protocol Buffers
 - Return confidence scores, not just pass/fail
 - Include request IDs for tracing
 
-### Testing
+## Testing
 
 - Unit tests for all business logic
-- Integration tests for verification flows
-- Mock ML services in tests
+- Integration tests for every external endpoint
+- Mock ML services in unit tests
 - Test with real Lebanese ID samples (redacted)
+- 80% overall, 100% critical paths
 
 ## Commit Convention
 

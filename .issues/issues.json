@@ -1,0 +1,126 @@
+{
+  "version": "1.0",
+  "description": "Discrete issue tracking for Minak Enta. One item per issue, iterable for automation.",
+  "issues": [
+    {
+      "id": "MINK-001",
+      "title": "Define OpenAPI spec for verification endpoints",
+      "type": "spec",
+      "status": "open",
+      "priority": "high",
+      "scope": "api",
+      "description": "Create OpenAPI 3.1 specification for /v1/verify/* endpoints",
+      "acceptance_criteria": [
+        "POST /v1/verify/start documented",
+        "POST /v1/verify/document documented",
+        "POST /v1/verify/selfie documented",
+        "GET /v1/verify/{id} documented",
+        "All request/response schemas defined",
+        "Error responses documented"
+      ],
+      "created": "2026-01-10",
+      "updated": "2026-01-10"
+    },
+    {
+      "id": "MINK-002",
+      "title": "Define protobuf contracts for internal ML services",
+      "type": "spec",
+      "status": "open",
+      "priority": "high",
+      "scope": "ml",
+      "description": "Create Protocol Buffer definitions for face, ocr, and liveness services",
+      "acceptance_criteria": [
+        "face.proto defined",
+        "ocr.proto defined",
+        "liveness.proto defined",
+        "Generated Go code committed",
+        "Generated Python code committed"
+      ],
+      "created": "2026-01-10",
+      "updated": "2026-01-10"
+    },
+    {
+      "id": "MINK-003",
+      "title": "Build OCR service for Lebanese ID cards",
+      "type": "feature",
+      "status": "open",
+      "priority": "high",
+      "scope": "ml",
+      "description": "Python microservice to extract data from Lebanese ID card images",
+      "depends_on": ["MINK-002"],
+      "acceptance_criteria": [
+        "Extracts name (Arabic + Latin)",
+        "Extracts date of birth",
+        "Extracts ID number",
+        "Extracts photo region",
+        "Returns confidence scores per field",
+        "Handles front and back of ID",
+        "Integration tests pass",
+        "100% coverage on extraction logic"
+      ],
+      "created": "2026-01-10",
+      "updated": "2026-01-10"
+    },
+    {
+      "id": "MINK-004",
+      "title": "Build face matching service",
+      "type": "feature",
+      "status": "open",
+      "priority": "high",
+      "scope": "ml",
+      "description": "Python microservice to compare faces between ID photo and selfie",
+      "depends_on": ["MINK-002"],
+      "acceptance_criteria": [
+        "Accepts two images",
+        "Returns similarity score 0-100",
+        "Returns face embedding hash",
+        "Handles various lighting conditions",
+        "Integration tests pass",
+        "100% coverage on matching logic"
+      ],
+      "created": "2026-01-10",
+      "updated": "2026-01-10"
+    },
+    {
+      "id": "MINK-005",
+      "title": "Build liveness detection service",
+      "type": "feature",
+      "status": "open",
+      "priority": "high",
+      "scope": "ml",
+      "description": "Python microservice to verify selfie is from a live person",
+      "depends_on": ["MINK-002"],
+      "acceptance_criteria": [
+        "Detects printed photo attacks",
+        "Detects screen replay attacks",
+        "Returns liveness confidence 0-100",
+        "Integration tests pass",
+        "100% coverage on detection logic"
+      ],
+      "created": "2026-01-10",
+      "updated": "2026-01-10"
+    },
+    {
+      "id": "MINK-006",
+      "title": "Build core verification orchestration",
+      "type": "feature",
+      "status": "open",
+      "priority": "high",
+      "scope": "verification",
+      "description": "Go service that orchestrates the verification flow",
+      "depends_on": ["MINK-001", "MINK-003", "MINK-004", "MINK-005"],
+      "acceptance_criteria": [
+        "Manages verification sessions",
+        "Calls OCR, face, liveness services",
+        "Calculates composite confidence score",
+        "Stores verification results",
+        "Deletes raw images after processing",
+        "Audit logs all attempts",
+        "Integration tests pass",
+        "100% coverage on scoring logic"
+      ],
+      "created": "2026-01-10",
+      "updated": "2026-01-10"
+    }
+  ]
+}

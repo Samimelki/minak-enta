@@ -1,0 +1,405 @@
+openapi: 3.1.0
+info:
+  title: Minak Enta API
+  description: |
+    Sovereign identity verification service for Lebanon.
+
+    This API allows consumer applications to verify Lebanese citizens' identities
+    through ID document scanning, facial recognition, and liveness detection.
+  version: 1.0.0
+  contact:
+    name: Minak Enta
+    url: https://github.com/samimelki/minak-enta
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.minak-enta.lb/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: verification
+    description: Identity verification flow
+  - name: user
+    description: User management and status
+
+paths:
+  /verify/start:
+    post:
+      operationId: startVerification
+      tags: [verification]
+      summary: Start a new verification session
+      description: |
+        Initiates a new identity verification session. Returns a session ID
+        that must be used for subsequent document and selfie uploads.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartVerificationRequest'
+      responses:
+        '201':
+          description: Verification session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /verify/{sessionId}/document:
+    post:
+      operationId: uploadDocument
+      tags: [verification]
+      summary: Upload ID document image
+      description: |
+        Upload front or back of Lebanese ID card. Both sides must be uploaded
+        before proceeding to selfie capture.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUpload'
+      responses:
+        '200':
+          description: Document processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /verify/{sessionId}/selfie:
+    post:
+      operationId: uploadSelfie
+      tags: [verification]
+      summary: Upload selfie with liveness check
+      description: |
+        Upload selfie image. System performs liveness detection and face
+        matching against the ID document photo.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelfieUpload'
+      responses:
+        '200':
+          description: Selfie processed, verification complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /verify/{sessionId}:
+    get:
+      operationId: getVerificationStatus
+      tags: [verification]
+      summary: Get verification session status
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Verification status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user/{userId}:
+    get:
+      operationId: getUserStatus
+      tags: [user]
+      summary: Get user verification status
+      description: |
+        Check if a user is verified and their current trust level.
+        Used by consumer applications to verify user identity.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatus'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteUser
+      tags: [user]
+      summary: Delete user data
+      description: |
+        User requests deletion of all their data. Complies with data
+        protection requirements.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: User data deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Verification session ID
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: User ID
+
+  schemas:
+    StartVerificationRequest:
+      type: object
+      properties:
+        callback_url:
+          type: string
+          format: uri
+          description: URL to receive verification result callback
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Consumer-defined metadata to include in callback
+
+    VerificationSession:
+      type: object
+      required: [session_id, status, created_at, expires_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    SessionStatus:
+      type: string
+      enum:
+        - pending_document_front
+        - pending_document_back
+        - pending_selfie
+        - processing
+        - completed
+        - failed
+        - expired
+
+    DocumentUpload:
+      type: object
+      required: [side, image]
+      properties:
+        side:
+          type: string
+          enum: [front, back]
+        image:
+          type: string
+          format: binary
+          description: ID card image (JPEG or PNG)
+
+    DocumentResult:
+      type: object
+      required: [side, status, confidence]
+      properties:
+        side:
+          type: string
+          enum: [front, back]
+        status:
+          type: string
+          enum: [accepted, rejected, needs_retry]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 100
+        extracted_data:
+          $ref: '#/components/schemas/ExtractedData'
+        rejection_reason:
+          type: string
+
+    ExtractedData:
+      type: object
+      properties:
+        name_arabic:
+          type: string
+        name_latin:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        id_number:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        nationality:
+          type: string
+
+    SelfieUpload:
+      type: object
+      required: [image]
+      properties:
+        image:
+          type: string
+          format: binary
+          description: Selfie image (JPEG or PNG)
+
+    VerificationResult:
+      type: object
+      required: [session_id, status, confidence_score]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [verified, rejected, pending_review]
+        confidence_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        user_id:
+          type: string
+          format: uuid
+          description: Assigned user ID if verified
+        scores:
+          $ref: '#/components/schemas/DetailedScores'
+        rejection_reasons:
+          type: array
+          items:
+            type: string
+        verified_at:
+          type: string
+          format: date-time
+
+    DetailedScores:
+      type: object
+      properties:
+        document_quality:
+          type: integer
+          minimum: 0
+          maximum: 100
+        ocr_confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        face_match:
+          type: integer
+          minimum: 0
+          maximum: 100
+        liveness:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    UserStatus:
+      type: object
+      required: [user_id, is_verified, verification_level]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        is_verified:
+          type: boolean
+        verification_level:
+          type: string
+          enum: [none, basic, standard, high]
+        confidence_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        verified_at:
+          type: string
+          format: date-time
+        last_verification:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        request_id:
+          type: string
+          format: uuid
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
