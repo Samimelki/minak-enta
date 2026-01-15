@@ -1,0 +1,531 @@
+openapi: 3.1.0
+info:
+    title: LivenessService API
+    version: 1.0.0
+paths:
+    /LivenessService/DetectLiveness:
+        post:
+            tags:
+                - LivenessService
+            summary: DetectLiveness
+            description: Perform liveness detection on a selfie image.
+            operationId: DetectLiveness
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DetectLivenessRequest'
+                required: true
+            responses:
+                "200":
+                    description: Successful response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DetectLivenessResponse'
+                "400":
+                    description: Validation error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ValidationError'
+                default:
+                    description: Error response
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                    code:
+                                        type: integer
+    /LivenessService/AnalyzeVideoSequence:
+        post:
+            tags:
+                - LivenessService
+            summary: AnalyzeVideoSequence
+            description: Analyze multiple frames for enhanced liveness detection.
+            operationId: AnalyzeVideoSequence
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnalyzeVideoSequenceRequest'
+                required: true
+            responses:
+                "200":
+                    description: Successful response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnalyzeVideoSequenceResponse'
+                "400":
+                    description: Validation error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ValidationError'
+                default:
+                    description: Error response
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                    code:
+                                        type: integer
+components:
+    schemas:
+        FieldViolation:
+            type: object
+            properties:
+                field:
+                    type: string
+                    description: The field path that failed validation (e.g., 'user.email' for nested fields). For header validation, this will be the header name (e.g., 'X-API-Key')
+                description:
+                    type: string
+                    description: Human-readable description of the validation violation (e.g., 'must be a valid email address', 'required field missing')
+            required:
+                - field
+                - description
+            description: FieldViolation describes a single validation error for a specific field.
+        ValidationError:
+            type: object
+            properties:
+                violations:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/FieldViolation'
+                    description: List of validation violations
+            required:
+                - violations
+            description: ValidationError is returned when request validation fails. It contains a list of field violations describing what went wrong.
+        DetectLivenessRequest:
+            type: object
+            properties:
+                requestId:
+                    type: string
+                    description: Unique request identifier for tracing.
+                imageData:
+                    type: string
+                    format: byte
+                    description: Selfie image data (JPEG or PNG).
+                challengeType:
+                    type: string
+                    description: Challenge type used (if any).
+                expectedActions:
+                    type: array
+                    items:
+                        type: string
+                        description: Expected user actions (e.g., "blink", "smile", "turn_head").
+            description: Request to detect liveness in a single image.
+        DetectLivenessResponse:
+            type: object
+            properties:
+                status:
+                    type: string
+                    enum:
+                        - PROCESSING_STATUS_UNSPECIFIED
+                        - PROCESSING_STATUS_SUCCESS
+                        - PROCESSING_STATUS_FAILED
+                        - PROCESSING_STATUS_LOW_CONFIDENCE
+                        - PROCESSING_STATUS_NO_FACE_DETECTED
+                        - PROCESSING_STATUS_MULTIPLE_FACES_DETECTED
+                        - PROCESSING_STATUS_LOW_QUALITY_IMAGE
+                        - PROCESSING_STATUS_INSUFFICIENT_FRAMES
+                    description: Common processing status used across all ML services
+                livenessScore:
+                    type: number
+                    format: float
+                    description: Overall liveness score (0.0-1.0, higher is more likely live).
+                confidence:
+                    type: number
+                    format: float
+                    description: Confidence in the liveness assessment (0.0-1.0).
+                analysis:
+                    $ref: '#/components/schemas/LivenessAnalysis'
+                metadata:
+                    $ref: '#/components/schemas/ProcessingMetadata'
+                errorMessage:
+                    type: string
+                    description: Error details if detection failed.
+            description: Response from liveness detection.
+        LivenessAnalysis:
+            type: object
+            properties:
+                faceDetection:
+                    $ref: '#/components/schemas/FaceDetection'
+                spoofingDetection:
+                    $ref: '#/components/schemas/SpoofingDetection'
+                motionAnalysis:
+                    $ref: '#/components/schemas/MotionAnalysis'
+                qualityAssessment:
+                    $ref: '#/components/schemas/QualityAssessment'
+                attackDetection:
+                    $ref: '#/components/schemas/AttackTypeDetection'
+            description: Detailed liveness analysis results.
+        FaceDetection:
+            type: object
+            properties:
+                faceDetected:
+                    type: boolean
+                detectionConfidence:
+                    type: number
+                    format: float
+                faceBounds:
+                    $ref: '#/components/schemas/BoundingBox'
+            description: Face detection results.
+        BoundingBox:
+            type: object
+            properties:
+                x:
+                    type: integer
+                    format: int32
+                y:
+                    type: integer
+                    format: int32
+                width:
+                    type: integer
+                    format: int32
+                height:
+                    type: integer
+                    format: int32
+            description: 2D bounding box for detected regions
+        SpoofingDetection:
+            type: object
+            properties:
+                spoofingProbability:
+                    type: number
+                    format: float
+                    description: Probability of spoofing attack (0.0-1.0).
+                detectedMethods:
+                    type: array
+                    items:
+                        type: string
+                        description: Detected spoofing methods.
+                antiSpoofingScores:
+                    type: object
+                    additionalProperties:
+                        type: number
+                        format: float
+                    description: Anti-spoofing scores for different attack types.
+            description: Spoofing detection results.
+        AntiSpoofingScoresEntry:
+            type: object
+            properties:
+                key:
+                    type: string
+                value:
+                    type: number
+                    format: float
+        MotionAnalysis:
+            type: object
+            properties:
+                motionDetected:
+                    type: boolean
+                motionScore:
+                    type: number
+                    format: float
+                motionType:
+                    type: string
+                    description: Motion type (e.g., "blink", "head_turn", "expression_change").
+            description: Motion analysis results.
+        QualityAssessment:
+            type: object
+            properties:
+                overallQuality:
+                    type: number
+                    format: float
+                    description: Overall quality (0.0-1.0).
+                brightnessScore:
+                    type: number
+                    format: float
+                    description: Brightness score (0.0-1.0).
+                sharpnessScore:
+                    type: number
+                    format: float
+                    description: Sharpness score (0.0-1.0).
+                contrastScore:
+                    type: number
+                    format: float
+                    description: Contrast score (0.0-1.0).
+                noiseScore:
+                    type: number
+                    format: float
+                    description: Noise score (0.0-1.0, lower is better).
+                qualityIssues:
+                    type: array
+                    items:
+                        type: string
+                        description: Specific quality issues detected.
+            description: Image quality assessment.
+        AttackTypeDetection:
+            type: object
+            properties:
+                primaryAttackType:
+                    type: string
+                    description: Primary attack type detected.
+                attackTypeConfidences:
+                    type: object
+                    additionalProperties:
+                        type: number
+                        format: float
+                    description: Confidence scores for different attack types.
+            description: Attack type detection.
+        AttackTypeConfidencesEntry:
+            type: object
+            properties:
+                key:
+                    type: string
+                value:
+                    type: number
+                    format: float
+        ProcessingMetadata:
+            type: object
+            properties:
+                processingTimeMs:
+                    type: integer
+                    format: int32
+                    description: Processing duration in milliseconds
+                modelVersion:
+                    type: string
+                    description: Version of the model/engine used
+                methodsApplied:
+                    type: array
+                    items:
+                        type: string
+                        description: Preprocessing or detection methods applied
+                processedAt:
+                    $ref: '#/components/schemas/Timestamp'
+                additionalMetadata:
+                    type: object
+                    additionalProperties:
+                        type: string
+                    description: Additional metadata as key-value pairs
+            description: Common processing metadata included in all ML service responses
+        AdditionalMetadataEntry:
+            type: object
+            properties:
+                key:
+                    type: string
+                value:
+                    type: string
+        Timestamp:
+            type: object
+            properties:
+                seconds:
+                    type: integer
+                    format: int64
+                    description: |-
+                        Represents seconds of UTC time since Unix epoch
+                         1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to
+                         9999-12-31T23:59:59Z inclusive.
+                nanos:
+                    type: integer
+                    format: int32
+                    description: |-
+                        Non-negative fractions of a second at nanosecond resolution. Negative
+                         second values with fractions must still have non-negative nanos values
+                         that count forward in time. Must be from 0 to 999,999,999
+                         inclusive.
+            description: |-
+                A Timestamp represents a point in time independent of any time zone or local
+                 calendar, encoded as a count of seconds and fractions of seconds at
+                 nanosecond resolution. The count is relative to an epoch at UTC midnight on
+                 January 1, 1970, in the proleptic Gregorian calendar which extends the
+                 Gregorian calendar backwards to year one.
+
+                 All minutes are 60 seconds long. Leap seconds are "smeared" so that no leap
+                 second table is needed for interpretation, using a [24-hour linear
+                 smear](https://developers.google.com/time/smear).
+
+                 The range is from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59.999999999Z. By
+                 restricting to that range, we ensure that we can convert to and from [RFC
+                 3339](https://www.ietf.org/rfc/rfc3339.txt) date strings.
+
+                 # Examples
+
+                 Example 1: Compute Timestamp from POSIX `time()`.
+
+                     Timestamp timestamp;
+                     timestamp.set_seconds(time(NULL));
+                     timestamp.set_nanos(0);
+
+                 Example 2: Compute Timestamp from POSIX `gettimeofday()`.
+
+                     struct timeval tv;
+                     gettimeofday(&tv, NULL);
+
+                     Timestamp timestamp;
+                     timestamp.set_seconds(tv.tv_sec);
+                     timestamp.set_nanos(tv.tv_usec * 1000);
+
+                 Example 3: Compute Timestamp from Win32 `GetSystemTimeAsFileTime()`.
+
+                     FILETIME ft;
+                     GetSystemTimeAsFileTime(&ft);
+                     UINT64 ticks = (((UINT64)ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
+
+                     // A Windows tick is 100 nanoseconds. Windows epoch 1601-01-01T00:00:00Z
+                     // is 11644473600 seconds before Unix epoch 1970-01-01T00:00:00Z.
+                     Timestamp timestamp;
+                     timestamp.set_seconds((INT64) ((ticks / 10000000) - 11644473600LL));
+                     timestamp.set_nanos((INT32) ((ticks % 10000000) * 100));
+
+                 Example 4: Compute Timestamp from Java `System.currentTimeMillis()`.
+
+                     long millis = System.currentTimeMillis();
+
+                     Timestamp timestamp = Timestamp.newBuilder().setSeconds(millis / 1000)
+                         .setNanos((int) ((millis % 1000) * 1000000)).build();
+
+                 Example 5: Compute Timestamp from Java `Instant.now()`.
+
+                     Instant now = Instant.now();
+
+                     Timestamp timestamp =
+                         Timestamp.newBuilder().setSeconds(now.getEpochSecond())
+                             .setNanos(now.getNano()).build();
+
+                 Example 6: Compute Timestamp from current time in Python.
+
+                     timestamp = Timestamp()
+                     timestamp.GetCurrentTime()
+
+                 # JSON Mapping
+
+                 In JSON format, the Timestamp type is encoded as a string in the
+                 [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format. That is, the
+                 format is "{year}-{month}-{day}T{hour}:{min}:{sec}[.{frac_sec}]Z"
+                 where {year} is always expressed using four digits while {month}, {day},
+                 {hour}, {min}, and {sec} are zero-padded to two digits each. The fractional
+                 seconds, which can go up to 9 digits (i.e. up to 1 nanosecond resolution),
+                 are optional. The "Z" suffix indicates the timezone ("UTC"); the timezone
+                 is required. A proto3 JSON serializer should always use UTC (as indicated by
+                 "Z") when printing the Timestamp type and a proto3 JSON parser should be
+                 able to accept both UTC and other timezones (as indicated by an offset).
+
+                 For example, "2017-01-15T01:30:15.01Z" encodes 15.01 seconds past
+                 01:30 UTC on January 15, 2017.
+
+                 In JavaScript, one can convert a Date object to this format using the
+                 standard
+                 [toISOString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString)
+                 method. In Python, a standard `datetime.datetime` object can be converted
+                 to this format using
+                 [`strftime`](https://docs.python.org/2/library/time.html#time.strftime) with
+                 the time format spec '%Y-%m-%dT%H:%M:%S.%fZ'. Likewise, in Java, one can use
+                 the Joda Time's [`ISODateTimeFormat.dateTime()`](
+                 http://joda-time.sourceforge.net/apidocs/org/joda/time/format/ISODateTimeFormat.html#dateTime()
+                 ) to obtain a formatter capable of generating timestamps in this format.
+        AnalyzeVideoSequenceRequest:
+            type: object
+            properties:
+                requestId:
+                    type: string
+                    description: Unique request identifier for tracing.
+                frameData:
+                    type: array
+                    items:
+                        type: string
+                        format: byte
+                        description: Sequence of image frames (JPEG or PNG).
+                frameTimestampsMs:
+                    type: array
+                    items:
+                        type: integer
+                        format: int64
+                        description: Frame timestamps (relative to sequence start).
+                challengeType:
+                    type: string
+                    description: Challenge type used.
+                expectedActions:
+                    type: array
+                    items:
+                        type: string
+                        description: Expected user actions during the sequence.
+            description: Request to analyze a sequence of video frames.
+        AnalyzeVideoSequenceResponse:
+            type: object
+            properties:
+                status:
+                    type: string
+                    enum:
+                        - PROCESSING_STATUS_UNSPECIFIED
+                        - PROCESSING_STATUS_SUCCESS
+                        - PROCESSING_STATUS_FAILED
+                        - PROCESSING_STATUS_LOW_CONFIDENCE
+                        - PROCESSING_STATUS_NO_FACE_DETECTED
+                        - PROCESSING_STATUS_MULTIPLE_FACES_DETECTED
+                        - PROCESSING_STATUS_LOW_QUALITY_IMAGE
+                        - PROCESSING_STATUS_INSUFFICIENT_FRAMES
+                    description: Common processing status used across all ML services
+                livenessScore:
+                    type: number
+                    format: float
+                    description: Overall liveness score (0.0-1.0).
+                confidence:
+                    type: number
+                    format: float
+                    description: Confidence in the assessment (0.0-1.0).
+                frameAnalyses:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/FrameAnalysis'
+                sequenceAnalysis:
+                    $ref: '#/components/schemas/SequenceAnalysis'
+                metadata:
+                    $ref: '#/components/schemas/ProcessingMetadata'
+                errorMessage:
+                    type: string
+                    description: Error details if analysis failed.
+            description: Response from video sequence analysis.
+        FrameAnalysis:
+            type: object
+            properties:
+                frameIndex:
+                    type: integer
+                    format: int32
+                livenessScore:
+                    type: number
+                    format: float
+                confidence:
+                    type: number
+                    format: float
+                analysis:
+                    $ref: '#/components/schemas/LivenessAnalysis'
+            description: Analysis results for a single frame.
+        SequenceAnalysis:
+            type: object
+            properties:
+                temporalConsistency:
+                    type: number
+                    format: float
+                    description: Temporal consistency score.
+                actionCompletionScores:
+                    type: object
+                    additionalProperties:
+                        type: number
+                        format: float
+                    description: Action completion scores.
+                sequenceQuality:
+                    type: number
+                    format: float
+                    description: Overall sequence quality.
+                detectedActions:
+                    type: array
+                    items:
+                        type: string
+                        description: Detected user actions.
+            description: Sequence-level analysis results.
+        ActionCompletionScoresEntry:
+            type: object
+            properties:
+                key:
+                    type: string
+                value:
+                    type: number
+                    format: float

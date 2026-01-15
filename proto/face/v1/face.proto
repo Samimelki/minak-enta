@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package minakenta.face.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/common.proto";
+
+option go_package = "github.com/Samimelki/minak-enta/api/face/v1";
+
+// Face recognition service for biometric verification.
+service FaceService {
+  // Extract face embeddings from an image.
+  rpc ExtractEmbedding(ExtractEmbeddingRequest) returns (ExtractEmbeddingResponse);
+
+  // Compare two face embeddings for similarity.
+  rpc CompareFaces(CompareFacesRequest) returns (CompareFacesResponse);
+
+  // Detect faces in an image.
+  rpc DetectFaces(DetectFacesRequest) returns (DetectFacesResponse);
+}
+
+// Request to extract face embedding from an image.
+message ExtractEmbeddingRequest {
+  // Unique request identifier for tracing.
+  string request_id = 1;
+
+  // Image data (JPEG or PNG).
+  bytes image_data = 2;
+
+  // Maximum number of faces to process (default: 1).
+  int32 max_faces = 3;
+
+  // Minimum face detection confidence threshold (0.0-1.0).
+  float min_confidence = 4;
+}
+
+// Response from embedding extraction.
+message ExtractEmbeddingResponse {
+  // Processing status.
+  minakenta.common.v1.ProcessingStatus status = 1;
+
+  // Detected faces with their embeddings.
+  repeated FaceEmbedding faces = 2;
+
+  // Processing metadata.
+  minakenta.common.v1.ProcessingMetadata metadata = 3;
+
+  // Error details if processing failed.
+  string error_message = 4;
+}
+
+// Face embedding data.
+message FaceEmbedding {
+  // Face identifier within the image.
+  int32 face_id = 1;
+
+  // Face detection confidence (0.0-1.0).
+  float detection_confidence = 2;
+
+  // Face embedding vector (normalized).
+  repeated float embedding = 3;
+
+  // Face bounding box coordinates.
+  minakenta.common.v1.BoundingBox bounding_box = 4;
+
+  // Face landmarks (optional).
+  repeated Landmark landmarks = 5;
+}
+
+// Facial landmark point.
+message Landmark {
+  // Landmark name (e.g., "left_eye", "nose", "mouth").
+  string name = 1;
+  float x = 2;
+  float y = 3;
+}
+
+// Request to compare two face embeddings.
+message CompareFacesRequest {
+  // Unique request identifier for tracing.
+  string request_id = 1;
+
+  // First face embedding.
+  repeated float embedding1 = 2;
+
+  // Second face embedding.
+  repeated float embedding2 = 3;
+
+  // Distance metric to use.
+  DistanceMetric metric = 4;
+}
+
+// Distance metrics for face comparison.
+enum DistanceMetric {
+  DISTANCE_METRIC_UNSPECIFIED = 0;
+  DISTANCE_METRIC_COSINE = 1;        // Cosine similarity (higher is more similar)
+  DISTANCE_METRIC_EUCLIDEAN = 2;     // Euclidean distance (lower is more similar)
+  DISTANCE_METRIC_MANHATTAN = 3;     // Manhattan distance (lower is more similar)
+}
+
+// Response from face comparison.
+message CompareFacesResponse {
+  // Similarity score (0.0-1.0, higher is more similar).
+  float similarity_score = 1;
+
+  // Distance value (interpretation depends on metric).
+  float distance = 2;
+
+  // Confidence in the comparison result (0.0-1.0).
+  float confidence = 3;
+
+  // Processing metadata.
+  minakenta.common.v1.ProcessingMetadata metadata = 4;
+
+  // Error details if comparison failed.
+  string error_message = 5;
+}
+
+// Request to detect faces in an image.
+message DetectFacesRequest {
+  // Unique request identifier for tracing.
+  string request_id = 1;
+
+  // Image data (JPEG or PNG).
+  bytes image_data = 2;
+
+  // Maximum number of faces to detect.
+  int32 max_faces = 3;
+
+  // Minimum detection confidence threshold (0.0-1.0).
+  float min_confidence = 4;
+}
+
+// Response from face detection.
+message DetectFacesResponse {
+  // Processing status.
+  minakenta.common.v1.ProcessingStatus status = 1;
+
+  // Detected faces.
+  repeated DetectedFace faces = 2;
+
+  // Processing metadata.
+  minakenta.common.v1.ProcessingMetadata metadata = 3;
+
+  // Error details if detection failed.
+  string error_message = 4;
+}
+
+// Detected face information (without embedding).
+message DetectedFace {
+  // Face identifier within the image.
+  int32 face_id = 1;
+
+  // Detection confidence (0.0-1.0).
+  float confidence = 2;
+
+  // Face bounding box coordinates.
+  minakenta.common.v1.BoundingBox bounding_box = 3;
+
+  // Face landmarks (optional).
+  repeated Landmark landmarks = 4;
+}

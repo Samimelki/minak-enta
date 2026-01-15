@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package minakenta.ocr.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/common.proto";
+
+option go_package = "github.com/Samimelki/minak-enta/api/ocr/v1";
+
+// OCR service for extracting text from Lebanese ID documents.
+service OCRService {
+  // Process an ID document image and extract structured data.
+  rpc ProcessDocument(ProcessDocumentRequest) returns (ProcessDocumentResponse);
+}
+
+// Supported document types.
+enum DocumentType {
+  DOCUMENT_TYPE_UNSPECIFIED = 0;
+  DOCUMENT_TYPE_LEBANESE_ID_FRONT = 1;
+  DOCUMENT_TYPE_LEBANESE_ID_BACK = 2;
+}
+
+// Request to process a document.
+message ProcessDocumentRequest {
+  // Unique request identifier for tracing.
+  string request_id = 1;
+
+  // Document image data (JPEG or PNG).
+  bytes image_data = 2;
+
+  // Document type to guide OCR processing.
+  DocumentType document_type = 3;
+
+  // Expected language hints (e.g., "ara" for Arabic, "lat" for Latin).
+  repeated string language_hints = 4;
+}
+
+// Response from document processing.
+message ProcessDocumentResponse {
+  // Processing status.
+  minakenta.common.v1.ProcessingStatus status = 1;
+
+  // Overall confidence score (0-100).
+  float confidence_score = 2;
+
+  // Extracted structured data.
+  ExtractedData extracted_data = 3;
+
+  // Detailed confidence scores for individual fields.
+  FieldConfidences field_confidences = 4;
+
+  // Processing metadata.
+  minakenta.common.v1.ProcessingMetadata metadata = 5;
+
+  // Error details if processing failed.
+  string error_message = 6;
+}
+
+// Structured data extracted from the document.
+message ExtractedData {
+  // Personal information.
+  string name_arabic = 1;
+  string name_latin = 2;
+  string date_of_birth = 3;  // ISO 8601 format: YYYY-MM-DD
+  string id_number = 4;
+  string gender = 5;         // "male" or "female"
+  string nationality = 6;
+
+  // Document information.
+  string document_number = 7;
+  string issue_date = 8;     // ISO 8601 format: YYYY-MM-DD
+  string expiry_date = 9;    // ISO 8601 format: YYYY-MM-DD
+  string issuing_authority = 10;
+
+  // Additional extracted fields (may be empty).
+  map<string, string> additional_fields = 11;
+}
+
+// Confidence scores for individual fields.
+message FieldConfidences {
+  float name_arabic_confidence = 1;
+  float name_latin_confidence = 2;
+  float date_of_birth_confidence = 3;
+  float id_number_confidence = 4;
+  float gender_confidence = 5;
+  float nationality_confidence = 6;
+  float document_number_confidence = 7;
+  float issue_date_confidence = 8;
+  float expiry_date_confidence = 9;
+  float issuing_authority_confidence = 10;
+}

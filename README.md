@@ -99,17 +99,114 @@ DELETE /v1/user/{id}         # User requests data deletion
 
 ## Tech Stack
 
-- **Backend**: Go
+- **Backend**: Go (main API server)
+- **AI/ML Services**: Python microservices
+  - **OCR Service**: Tesseract + OpenCV for text extraction
+  - **Face Recognition**: InsightFace for biometric verification
+  - **Liveness Detection**: Computer vision heuristics
 - **API**: Protocol Buffers over HTTP
 - **Database**: PostgreSQL
-- **Face Recognition**: Open-source (InsightFace/DeepFace)
-- **Liveness Detection**: Open-source (KBY-AI or similar)
-- **OCR**: Tesseract + custom Lebanese ID templates
+- **Web Interface**: Vanilla HTML/CSS/JavaScript
 - **Infrastructure**: Self-hosted / Kubernetes
+
+## Quick Start
+
+### Prerequisites
+- Go 1.21+
+- Python 3.8+
+- PostgreSQL
+- Tesseract OCR (`brew install tesseract`)
+
+### Manual Startup (Recommended for Testing)
+
+```bash
+# 1. Set up Python virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# 2. Install Python dependencies
+pip install -r ml/ocr/requirements.txt
+pip install -r ml/face/requirements.txt
+pip install -r ml/liveness/requirements.txt
+
+# 3. Set up database
+createdb minak_enta
+psql -d minak_enta -c "CREATE USER minak_enta WITH PASSWORD 'password';"
+psql -d minak_enta -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO minak_enta;"
+
+# 4. Run database migrations
+psql -d minak_enta -f migrations/20260114000000_initial_schema.sql
+
+# 5. Start services in separate terminals:
+
+# Terminal 1 - OCR Service (Port 5001)
+python3 ml/ocr/main.py
+
+# Terminal 2 - Face Service (Port 5002)
+python3 ml/face/main.py
+
+# Terminal 3 - Liveness Service (Port 5003)
+python3 ml/liveness/main.py
+
+# Terminal 4 - API Server (Port 38081)
+go run cmd/server/main.go
+
+# 6. Open web interface
+open http://localhost:38081/
+```
+
+### Automated Startup (Experimental)
+
+```bash
+# Use the manual startup script for step-by-step instructions
+./scripts/start-services.sh
+```
+
+### Manual Startup
+
+```bash
+# Terminal 1: OCR Service (Port 5001)
+source venv/bin/activate && python3 ml/ocr/main.py
+
+# Terminal 2: Face Service (Port 5002)
+source venv/bin/activate && python3 ml/face/main.py
+
+# Terminal 3: Liveness Service (Port 5003)
+source venv/bin/activate && python3 ml/liveness/main.py
+
+# Terminal 4: API Server (Port 38081)
+go run cmd/server/main.go
+```
+
+### Test the System
+
+```bash
+# Health checks
+curl http://localhost:5001/health  # OCR
+curl http://localhost:5002/health  # Face
+curl http://localhost:5003/health  # Liveness
+curl http://localhost:38081/health # API
+
+# Test OCR with generated test document
+curl -X POST -F "file=@test_document.png" -F "document_type=LEBANESE_ID_FRONT" \
+  http://localhost:5001/process-document
+
+# Test Face Detection
+curl -X POST -F "file=@test_document.png" http://localhost:5002/detect-faces
+
+# Test Liveness Detection
+curl -X POST -F "file=@test_document.png" http://localhost:5003/detect-liveness
+
+# Full verification flow via web UI: http://localhost:38081/
+```
 
 ## Project Status
 
-Early development - architecture and planning phase.
+✅ **Core implementation complete** - Full AI/ML-powered identity verification system
+- Go API server with PostgreSQL
+- Python ML microservices (OCR, Face, Liveness)
+- Web interface for testing
+- Complete verification workflow
 
 ## Related Projects
 

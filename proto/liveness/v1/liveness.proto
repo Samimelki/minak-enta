@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package minakenta.liveness.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/common.proto";
+
+option go_package = "github.com/Samimelki/minak-enta/api/liveness/v1";
+
+// Liveness detection service for selfie verification.
+service LivenessService {
+  // Perform liveness detection on a selfie image.
+  rpc DetectLiveness(DetectLivenessRequest) returns (DetectLivenessResponse);
+
+  // Analyze multiple frames for enhanced liveness detection.
+  rpc AnalyzeVideoSequence(AnalyzeVideoSequenceRequest) returns (AnalyzeVideoSequenceResponse);
+}
+
+// Request to detect liveness in a single image.
+message DetectLivenessRequest {
+  // Unique request identifier for tracing.
+  string request_id = 1;
+
+  // Selfie image data (JPEG or PNG).
+  bytes image_data = 2;
+
+  // Challenge type used (if any).
+  string challenge_type = 3;
+
+  // Expected user actions (e.g., "blink", "smile", "turn_head").
+  repeated string expected_actions = 4;
+}
+
+// Response from liveness detection.
+message DetectLivenessResponse {
+  // Processing status.
+  minakenta.common.v1.ProcessingStatus status = 1;
+
+  // Overall liveness score (0.0-1.0, higher is more likely live).
+  float liveness_score = 2;
+
+  // Confidence in the liveness assessment (0.0-1.0).
+  float confidence = 3;
+
+  // Detailed analysis results.
+  LivenessAnalysis analysis = 4;
+
+  // Processing metadata.
+  minakenta.common.v1.ProcessingMetadata metadata = 5;
+
+  // Error details if detection failed.
+  string error_message = 6;
+}
+
+// Detailed liveness analysis results.
+message LivenessAnalysis {
+  // Face detection results.
+  FaceDetection face_detection = 1;
+
+  // Spoofing detection results.
+  SpoofingDetection spoofing_detection = 2;
+
+  // Motion analysis (if available).
+  MotionAnalysis motion_analysis = 3;
+
+  // Quality assessment.
+  QualityAssessment quality_assessment = 4;
+
+  // Attack type detection (if spoofing detected).
+  AttackTypeDetection attack_detection = 5;
+}
+
+// Face detection results.
+message FaceDetection {
+  bool face_detected = 1;
+  float detection_confidence = 2;
+  minakenta.common.v1.BoundingBox face_bounds = 3;
+}
+
+// Spoofing detection results.
+message SpoofingDetection {
+  // Probability of spoofing attack (0.0-1.0).
+  float spoofing_probability = 1;
+
+  // Detected spoofing methods.
+  repeated string detected_methods = 2;
+
+  // Anti-spoofing scores for different attack types.
+  map<string, float> anti_spoofing_scores = 3;
+}
+
+// Motion analysis results.
+message MotionAnalysis {
+  bool motion_detected = 1;
+  float motion_score = 2;
+  // Motion type (e.g., "blink", "head_turn", "expression_change").
+  string motion_type = 3;
+}
+
+// Image quality assessment.
+message QualityAssessment {
+  // Overall quality (0.0-1.0).
+  float overall_quality = 1;
+  // Brightness score (0.0-1.0).
+  float brightness_score = 2;
+  // Sharpness score (0.0-1.0).
+  float sharpness_score = 3;
+  // Contrast score (0.0-1.0).
+  float contrast_score = 4;
+  // Noise score (0.0-1.0, lower is better).
+  float noise_score = 5;
+  // Specific quality issues detected.
+  repeated string quality_issues = 6;
+}
+
+// Attack type detection.
+message AttackTypeDetection {
+  // Primary attack type detected.
+  string primary_attack_type = 1;
+
+  // Confidence scores for different attack types.
+  map<string, float> attack_type_confidences = 2;
+}
+
+// Request to analyze a sequence of video frames.
+message AnalyzeVideoSequenceRequest {
+  // Unique request identifier for tracing.
+  string request_id = 1;
+
+  // Sequence of image frames (JPEG or PNG).
+  repeated bytes frame_data = 2;
+
+  // Frame timestamps (relative to sequence start).
+  repeated int64 frame_timestamps_ms = 3;
+
+  // Challenge type used.
+  string challenge_type = 4;
+
+  // Expected user actions during the sequence.
+  repeated string expected_actions = 5;
+}
+
+// Response from video sequence analysis.
+message AnalyzeVideoSequenceResponse {
+  // Processing status.
+  minakenta.common.v1.ProcessingStatus status = 1;
+
+  // Overall liveness score (0.0-1.0).
+  float liveness_score = 2;
+
+  // Confidence in the assessment (0.0-1.0).
+  float confidence = 3;
+
+  // Per-frame analysis results.
+  repeated FrameAnalysis frame_analyses = 4;
+
+  // Sequence-level analysis.
+  SequenceAnalysis sequence_analysis = 5;
+
+  // Processing metadata.
+  minakenta.common.v1.ProcessingMetadata metadata = 6;
+
+  // Error details if analysis failed.
+  string error_message = 7;
+}
+
+// Analysis results for a single frame.
+message FrameAnalysis {
+  int32 frame_index = 1;
+  float liveness_score = 2;
+  float confidence = 3;
+  LivenessAnalysis analysis = 4;
+}
+
+// Sequence-level analysis results.
+message SequenceAnalysis {
+  // Temporal consistency score.
+  float temporal_consistency = 1;
+
+  // Action completion scores.
+  map<string, float> action_completion_scores = 2;
+
+  // Overall sequence quality.
+  float sequence_quality = 3;
+
+  // Detected user actions.
+  repeated string detected_actions = 4;
+}

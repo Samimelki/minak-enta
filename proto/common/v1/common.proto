@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package minakenta.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Samimelki/minak-enta/api/common/v1";
+
+// Common processing status used across all ML services
+enum ProcessingStatus {
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  PROCESSING_STATUS_SUCCESS = 1;
+  PROCESSING_STATUS_FAILED = 2;
+  PROCESSING_STATUS_LOW_CONFIDENCE = 3;
+  PROCESSING_STATUS_NO_FACE_DETECTED = 4;
+  PROCESSING_STATUS_MULTIPLE_FACES_DETECTED = 5;
+  PROCESSING_STATUS_LOW_QUALITY_IMAGE = 6;
+  PROCESSING_STATUS_INSUFFICIENT_FRAMES = 7;
+}
+
+// 2D bounding box for detected regions
+message BoundingBox {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+// Common processing metadata included in all ML service responses
+message ProcessingMetadata {
+  // Processing duration in milliseconds
+  int32 processing_time_ms = 1;
+
+  // Version of the model/engine used
+  string model_version = 2;
+
+  // Preprocessing or detection methods applied
+  repeated string methods_applied = 3;
+
+  // Timestamp when processing was completed
+  google.protobuf.Timestamp processed_at = 4;
+
+  // Additional metadata as key-value pairs
+  map<string, string> additional_metadata = 5;
+}

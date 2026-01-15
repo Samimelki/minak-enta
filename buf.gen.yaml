@@ -1,0 +1,28 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/Samimelki/minak-enta/api
+    - file_option: go_package_prefix
+      module: buf.build/googleapis/googleapis
+      value: google.golang.org/genproto
+    - file_option: go_package_prefix
+      module: buf.build/bufbuild/protovalidate
+      value: ""
+    - file_option: go_package_prefix
+      module: buf.build/sebmelki/sebuf
+      value: ""
+plugins:
+  - local: protoc-gen-go
+    out: api
+    opt:
+      - module=github.com/Samimelki/minak-enta/api
+  - local: protoc-gen-go-http
+    out: api
+    opt:
+      - module=github.com/Samimelki/minak-enta/api
+  - local: protoc-gen-openapiv3
+    out: docs/specs/openapi
+    opt:
+      - format=yaml

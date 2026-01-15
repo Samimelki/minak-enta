@@ -64,3 +64,19 @@ models/
 # OS
 .DS_Store
 Thumbs.db
+
+# Compiled binaries
+server
+
+# Test images and personal photos
+*.HEIC
+*.heic
+teta*.jpeg
+Screenshot*.png
+View*.png
+test_*.png
+test_*.py
+
+# IDE specific
+.specstory/
+.cursorindexingignore

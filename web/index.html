@@ -1,24 +1,4 @@
-package main
-
-import (
-	"context"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
-
-	"github.com/Samimelki/minak-enta/internal/api"
-	"github.com/Samimelki/minak-enta/internal/storage"
-)
-
-const webInterfaceHTML = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -191,7 +171,7 @@ const webInterfaceHTML = `<!DOCTYPE html>
             btn.innerHTML = '<div class="loading"></div> Starting...';
             btn.disabled = true;
 
-            fetch(apiBase + '/verify/start', {
+            fetch(`${apiBase}/verify/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -225,9 +205,9 @@ const webInterfaceHTML = `<!DOCTYPE html>
         }
 
         function uploadDocument(side) {
-            const fileInput = document.getElementById(side + '-file');
-            const btn = document.getElementById('upload-' + side + '-btn');
-            const result = document.getElementById(side + '-result');
+            const fileInput = document.getElementById(`${side}-file`);
+            const btn = document.getElementById(`upload-${side}-btn`);
+            const result = document.getElementById(`${side}-result`);
 
             if (!fileInput.files[0]) return;
 
@@ -238,7 +218,7 @@ const webInterfaceHTML = `<!DOCTYPE html>
             btn.innerHTML = '<div class="loading"></div> Uploading...';
             btn.disabled = true;
 
-            fetch(apiBase + '/verify/' + sessionId + '/document', {
+            fetch(`${apiBase}/verify/${sessionId}/document`, {
                 method: 'POST',
                 body: formData
             })
@@ -247,7 +227,7 @@ const webInterfaceHTML = `<!DOCTYPE html>
                 result.textContent = JSON.stringify(data, null, 2);
                 result.classList.remove('hidden');
 
-                btn.innerHTML = 'Uploaded ' + side + ' ✓';
+                btn.innerHTML = `Uploaded ${side} ✓`;
                 btn.disabled = true;
 
                 // Check if both documents are uploaded
@@ -256,7 +236,7 @@ const webInterfaceHTML = `<!DOCTYPE html>
             .catch(error => {
                 result.textContent = 'Error: ' + error.message;
                 result.classList.remove('hidden');
-                btn.innerHTML = 'Upload ' + side;
+                btn.innerHTML = `Upload ${side}`;
                 btn.disabled = false;
             });
         }
@@ -289,7 +269,7 @@ const webInterfaceHTML = `<!DOCTYPE html>
             btn.innerHTML = '<div class="loading"></div> Uploading...';
             btn.disabled = true;
 
-            fetch(apiBase + '/verify/' + sessionId + '/selfie', {
+            fetch(`${apiBase}/verify/${sessionId}/selfie`, {
                 method: 'POST',
                 body: formData
             })
@@ -322,22 +302,22 @@ const webInterfaceHTML = `<!DOCTYPE html>
             statusDiv.className = 'status';
             if (data.status === 'verified') {
                 statusDiv.classList.add('verified');
-                statusDiv.textContent = '✓ VERIFIED - Confidence: ' + data.confidence_score + '%';
+                statusDiv.textContent = `✓ VERIFIED - Confidence: ${data.confidence_score}%`;
             } else if (data.status === 'rejected') {
                 statusDiv.classList.add('rejected');
-                statusDiv.textContent = '✗ REJECTED - Confidence: ' + data.confidence_score + '%';
+                statusDiv.textContent = `✗ REJECTED - Confidence: ${data.confidence_score}%`;
             } else {
                 statusDiv.classList.add('pending');
-                statusDiv.textContent = '⏳ ' + data.status.toUpperCase() + ' - Confidence: ' + data.confidence_score + '%';
+                statusDiv.textContent = `⏳ ${data.status.toUpperCase()} - Confidence: ${data.confidence_score}%`;
             }
 
             // Show detailed results
-            resultDiv.textContent = 'Detailed Scores:\n' +
-                '• Document Quality: ' + data.scores.document_quality + '%\n' +
-                '• OCR Confidence: ' + data.scores.ocr_confidence + '%\n' +
-                '• Face Match: ' + data.scores.face_match + '%\n' +
-                '• Liveness: ' + data.scores.liveness + '%\n\n' +
-                'Session ID: ' + data.session_id;
+            resultDiv.textContent = `Detailed Scores:\n` +
+                `• Document Quality: ${data.scores.document_quality}%\n` +
+                `• OCR Confidence: ${data.scores.ocr_confidence}%\n` +
+                `• Face Match: ${data.scores.face_match}%\n` +
+                `• Liveness: ${data.scores.liveness}%\n\n` +
+                `Session ID: ${data.session_id}`;
             resultDiv.classList.remove('hidden');
         }
 
@@ -348,108 +328,4 @@ const webInterfaceHTML = `<!DOCTYPE html>
         });
     </script>
 </body>
-</html>`
-
-func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
-	}
-
-	// Initialize database connection
-	db, err := storage.NewPostgresConnection()
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer db.Close()
-
-	// Initialize storage layer
-	store := storage.New(db)
-
-	// Initialize API handlers
-	handlers := api.NewHandlers(store)
-
-	// Create router
-	r := chi.NewRouter()
-
-	// Global middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-
-	// CORS middleware
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Configure for production
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
-	}))
-
-	// Health check endpoint
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
-
-	// Serve web interface
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(webInterfaceHTML))
-	})
-
-	// API routes
-	r.Route("/v1", func(r chi.Router) {
-		// Verification endpoints
-		r.Route("/verify", func(r chi.Router) {
-			r.Post("/start", handlers.StartVerification)
-			r.Get("/{sessionId}", handlers.GetVerificationStatus)
-			r.Post("/{sessionId}/document", handlers.UploadDocument)
-			r.Post("/{sessionId}/selfie", handlers.UploadSelfie)
-		})
-
-		// User management endpoints
-		r.Route("/user", func(r chi.Router) {
-			r.Get("/{userId}", handlers.GetUserStatus)
-			r.Delete("/{userId}", handlers.DeleteUser)
-		})
-	})
-
-	// Get port from environment or use default
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "38081"
-	}
-
-	// Create server
-	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: r,
-	}
-
-	// Start server in a goroutine
-	go func() {
-		log.Printf("Starting Minak Enta API server on port %s", port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
-		}
-	}()
-
-	// Wait for interrupt signal to gracefully shutdown the server
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
-
-	// Give outstanding requests 30 seconds to complete
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
-	}
-
-	log.Println("Server exited")
-}
+</html>

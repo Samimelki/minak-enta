@@ -1,0 +1,487 @@
+openapi: 3.1.0
+info:
+    title: FaceService API
+    version: 1.0.0
+paths:
+    /FaceService/ExtractEmbedding:
+        post:
+            tags:
+                - FaceService
+            summary: ExtractEmbedding
+            description: Extract face embeddings from an image.
+            operationId: ExtractEmbedding
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ExtractEmbeddingRequest'
+                required: true
+            responses:
+                "200":
+                    description: Successful response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ExtractEmbeddingResponse'
+                "400":
+                    description: Validation error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ValidationError'
+                default:
+                    description: Error response
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                    code:
+                                        type: integer
+    /FaceService/CompareFaces:
+        post:
+            tags:
+                - FaceService
+            summary: CompareFaces
+            description: Compare two face embeddings for similarity.
+            operationId: CompareFaces
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CompareFacesRequest'
+                required: true
+            responses:
+                "200":
+                    description: Successful response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CompareFacesResponse'
+                "400":
+                    description: Validation error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ValidationError'
+                default:
+                    description: Error response
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                    code:
+                                        type: integer
+    /FaceService/DetectFaces:
+        post:
+            tags:
+                - FaceService
+            summary: DetectFaces
+            description: Detect faces in an image.
+            operationId: DetectFaces
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DetectFacesRequest'
+                required: true
+            responses:
+                "200":
+                    description: Successful response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DetectFacesResponse'
+                "400":
+                    description: Validation error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ValidationError'
+                default:
+                    description: Error response
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                    code:
+                                        type: integer
+components:
+    schemas:
+        FieldViolation:
+            type: object
+            properties:
+                field:
+                    type: string
+                    description: The field path that failed validation (e.g., 'user.email' for nested fields). For header validation, this will be the header name (e.g., 'X-API-Key')
+                description:
+                    type: string
+                    description: Human-readable description of the validation violation (e.g., 'must be a valid email address', 'required field missing')
+            required:
+                - field
+                - description
+            description: FieldViolation describes a single validation error for a specific field.
+        ValidationError:
+            type: object
+            properties:
+                violations:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/FieldViolation'
+                    description: List of validation violations
+            required:
+                - violations
+            description: ValidationError is returned when request validation fails. It contains a list of field violations describing what went wrong.
+        ExtractEmbeddingRequest:
+            type: object
+            properties:
+                requestId:
+                    type: string
+                    description: Unique request identifier for tracing.
+                imageData:
+                    type: string
+                    format: byte
+                    description: Image data (JPEG or PNG).
+                maxFaces:
+                    type: integer
+                    format: int32
+                    description: 'Maximum number of faces to process (default: 1).'
+                minConfidence:
+                    type: number
+                    format: float
+                    description: Minimum face detection confidence threshold (0.0-1.0).
+            description: Request to extract face embedding from an image.
+        ExtractEmbeddingResponse:
+            type: object
+            properties:
+                status:
+                    type: string
+                    enum:
+                        - PROCESSING_STATUS_UNSPECIFIED
+                        - PROCESSING_STATUS_SUCCESS
+                        - PROCESSING_STATUS_FAILED
+                        - PROCESSING_STATUS_LOW_CONFIDENCE
+                        - PROCESSING_STATUS_NO_FACE_DETECTED
+                        - PROCESSING_STATUS_MULTIPLE_FACES_DETECTED
+                        - PROCESSING_STATUS_LOW_QUALITY_IMAGE
+                        - PROCESSING_STATUS_INSUFFICIENT_FRAMES
+                    description: Common processing status used across all ML services
+                faces:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/FaceEmbedding'
+                metadata:
+                    $ref: '#/components/schemas/ProcessingMetadata'
+                errorMessage:
+                    type: string
+                    description: Error details if processing failed.
+            description: Response from embedding extraction.
+        FaceEmbedding:
+            type: object
+            properties:
+                faceId:
+                    type: integer
+                    format: int32
+                    description: Face identifier within the image.
+                detectionConfidence:
+                    type: number
+                    format: float
+                    description: Face detection confidence (0.0-1.0).
+                embedding:
+                    type: array
+                    items:
+                        type: number
+                        format: float
+                        description: Face embedding vector (normalized).
+                boundingBox:
+                    $ref: '#/components/schemas/BoundingBox'
+                landmarks:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Landmark'
+            description: Face embedding data.
+        BoundingBox:
+            type: object
+            properties:
+                x:
+                    type: integer
+                    format: int32
+                y:
+                    type: integer
+                    format: int32
+                width:
+                    type: integer
+                    format: int32
+                height:
+                    type: integer
+                    format: int32
+            description: 2D bounding box for detected regions
+        Landmark:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Landmark name (e.g., "left_eye", "nose", "mouth").
+                x:
+                    type: number
+                    format: float
+                y:
+                    type: number
+                    format: float
+            description: Facial landmark point.
+        ProcessingMetadata:
+            type: object
+            properties:
+                processingTimeMs:
+                    type: integer
+                    format: int32
+                    description: Processing duration in milliseconds
+                modelVersion:
+                    type: string
+                    description: Version of the model/engine used
+                methodsApplied:
+                    type: array
+                    items:
+                        type: string
+                        description: Preprocessing or detection methods applied
+                processedAt:
+                    $ref: '#/components/schemas/Timestamp'
+                additionalMetadata:
+                    type: object
+                    additionalProperties:
+                        type: string
+                    description: Additional metadata as key-value pairs
+            description: Common processing metadata included in all ML service responses
+        AdditionalMetadataEntry:
+            type: object
+            properties:
+                key:
+                    type: string
+                value:
+                    type: string
+        Timestamp:
+            type: object
+            properties:
+                seconds:
+                    type: integer
+                    format: int64
+                    description: |-
+                        Represents seconds of UTC time since Unix epoch
+                         1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to
+                         9999-12-31T23:59:59Z inclusive.
+                nanos:
+                    type: integer
+                    format: int32
+                    description: |-
+                        Non-negative fractions of a second at nanosecond resolution. Negative
+                         second values with fractions must still have non-negative nanos values
+                         that count forward in time. Must be from 0 to 999,999,999
+                         inclusive.
+            description: |-
+                A Timestamp represents a point in time independent of any time zone or local
+                 calendar, encoded as a count of seconds and fractions of seconds at
+                 nanosecond resolution. The count is relative to an epoch at UTC midnight on
+                 January 1, 1970, in the proleptic Gregorian calendar which extends the
+                 Gregorian calendar backwards to year one.
+
+                 All minutes are 60 seconds long. Leap seconds are "smeared" so that no leap
+                 second table is needed for interpretation, using a [24-hour linear
+                 smear](https://developers.google.com/time/smear).
+
+                 The range is from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59.999999999Z. By
+                 restricting to that range, we ensure that we can convert to and from [RFC
+                 3339](https://www.ietf.org/rfc/rfc3339.txt) date strings.
+
+                 # Examples
+
+                 Example 1: Compute Timestamp from POSIX `time()`.
+
+                     Timestamp timestamp;
+                     timestamp.set_seconds(time(NULL));
+                     timestamp.set_nanos(0);
+
+                 Example 2: Compute Timestamp from POSIX `gettimeofday()`.
+
+                     struct timeval tv;
+                     gettimeofday(&tv, NULL);
+
+                     Timestamp timestamp;
+                     timestamp.set_seconds(tv.tv_sec);
+                     timestamp.set_nanos(tv.tv_usec * 1000);
+
+                 Example 3: Compute Timestamp from Win32 `GetSystemTimeAsFileTime()`.
+
+                     FILETIME ft;
+                     GetSystemTimeAsFileTime(&ft);
+                     UINT64 ticks = (((UINT64)ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
+
+                     // A Windows tick is 100 nanoseconds. Windows epoch 1601-01-01T00:00:00Z
+                     // is 11644473600 seconds before Unix epoch 1970-01-01T00:00:00Z.
+                     Timestamp timestamp;
+                     timestamp.set_seconds((INT64) ((ticks / 10000000) - 11644473600LL));
+                     timestamp.set_nanos((INT32) ((ticks % 10000000) * 100));
+
+                 Example 4: Compute Timestamp from Java `System.currentTimeMillis()`.
+
+                     long millis = System.currentTimeMillis();
+
+                     Timestamp timestamp = Timestamp.newBuilder().setSeconds(millis / 1000)
+                         .setNanos((int) ((millis % 1000) * 1000000)).build();
+
+                 Example 5: Compute Timestamp from Java `Instant.now()`.
+
+                     Instant now = Instant.now();
+
+                     Timestamp timestamp =
+                         Timestamp.newBuilder().setSeconds(now.getEpochSecond())
+                             .setNanos(now.getNano()).build();
+
+                 Example 6: Compute Timestamp from current time in Python.
+
+                     timestamp = Timestamp()
+                     timestamp.GetCurrentTime()
+
+                 # JSON Mapping
+
+                 In JSON format, the Timestamp type is encoded as a string in the
+                 [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format. That is, the
+                 format is "{year}-{month}-{day}T{hour}:{min}:{sec}[.{frac_sec}]Z"
+                 where {year} is always expressed using four digits while {month}, {day},
+                 {hour}, {min}, and {sec} are zero-padded to two digits each. The fractional
+                 seconds, which can go up to 9 digits (i.e. up to 1 nanosecond resolution),
+                 are optional. The "Z" suffix indicates the timezone ("UTC"); the timezone
+                 is required. A proto3 JSON serializer should always use UTC (as indicated by
+                 "Z") when printing the Timestamp type and a proto3 JSON parser should be
+                 able to accept both UTC and other timezones (as indicated by an offset).
+
+                 For example, "2017-01-15T01:30:15.01Z" encodes 15.01 seconds past
+                 01:30 UTC on January 15, 2017.
+
+                 In JavaScript, one can convert a Date object to this format using the
+                 standard
+                 [toISOString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString)
+                 method. In Python, a standard `datetime.datetime` object can be converted
+                 to this format using
+                 [`strftime`](https://docs.python.org/2/library/time.html#time.strftime) with
+                 the time format spec '%Y-%m-%dT%H:%M:%S.%fZ'. Likewise, in Java, one can use
+                 the Joda Time's [`ISODateTimeFormat.dateTime()`](
+                 http://joda-time.sourceforge.net/apidocs/org/joda/time/format/ISODateTimeFormat.html#dateTime()
+                 ) to obtain a formatter capable of generating timestamps in this format.
+        CompareFacesRequest:
+            type: object
+            properties:
+                requestId:
+                    type: string
+                    description: Unique request identifier for tracing.
+                embedding1:
+                    type: array
+                    items:
+                        type: number
+                        format: float
+                        description: First face embedding.
+                embedding2:
+                    type: array
+                    items:
+                        type: number
+                        format: float
+                        description: Second face embedding.
+                metric:
+                    type: string
+                    enum:
+                        - DISTANCE_METRIC_UNSPECIFIED
+                        - DISTANCE_METRIC_COSINE
+                        - DISTANCE_METRIC_EUCLIDEAN
+                        - DISTANCE_METRIC_MANHATTAN
+                    description: Distance metrics for face comparison.
+            description: Request to compare two face embeddings.
+        CompareFacesResponse:
+            type: object
+            properties:
+                similarityScore:
+                    type: number
+                    format: float
+                    description: Similarity score (0.0-1.0, higher is more similar).
+                distance:
+                    type: number
+                    format: float
+                    description: Distance value (interpretation depends on metric).
+                confidence:
+                    type: number
+                    format: float
+                    description: Confidence in the comparison result (0.0-1.0).
+                metadata:
+                    $ref: '#/components/schemas/ProcessingMetadata'
+                errorMessage:
+                    type: string
+                    description: Error details if comparison failed.
+            description: Response from face comparison.
+        DetectFacesRequest:
+            type: object
+            properties:
+                requestId:
+                    type: string
+                    description: Unique request identifier for tracing.
+                imageData:
+                    type: string
+                    format: byte
+                    description: Image data (JPEG or PNG).
+                maxFaces:
+                    type: integer
+                    format: int32
+                    description: Maximum number of faces to detect.
+                minConfidence:
+                    type: number
+                    format: float
+                    description: Minimum detection confidence threshold (0.0-1.0).
+            description: Request to detect faces in an image.
+        DetectFacesResponse:
+            type: object
+            properties:
+                status:
+                    type: string
+                    enum:
+                        - PROCESSING_STATUS_UNSPECIFIED
+                        - PROCESSING_STATUS_SUCCESS
+                        - PROCESSING_STATUS_FAILED
+                        - PROCESSING_STATUS_LOW_CONFIDENCE
+                        - PROCESSING_STATUS_NO_FACE_DETECTED
+                        - PROCESSING_STATUS_MULTIPLE_FACES_DETECTED
+                        - PROCESSING_STATUS_LOW_QUALITY_IMAGE
+                        - PROCESSING_STATUS_INSUFFICIENT_FRAMES
+                    description: Common processing status used across all ML services
+                faces:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DetectedFace'
+                metadata:
+                    $ref: '#/components/schemas/ProcessingMetadata'
+                errorMessage:
+                    type: string
+                    description: Error details if detection failed.
+            description: Response from face detection.
+        DetectedFace:
+            type: object
+            properties:
+                faceId:
+                    type: integer
+                    format: int32
+                    description: Face identifier within the image.
+                confidence:
+                    type: number
+                    format: float
+                    description: Detection confidence (0.0-1.0).
+                boundingBox:
+                    $ref: '#/components/schemas/BoundingBox'
+                landmarks:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Landmark'
+            description: Detected face information (without embedding).
