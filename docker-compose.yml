@@ -1,0 +1,125 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: minak-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-minak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minak_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-minak_enta}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "35432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-minak} -d ${POSTGRES_DB:-minak_enta}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - minak-network
+
+  # OCR Service (Python)
+  ocr:
+    build:
+      context: ./ml/ocr
+      dockerfile: Dockerfile
+    container_name: minak-ocr
+    ports:
+      - "35001:35001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:35001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - minak-network
+    restart: unless-stopped
+
+  # Face Recognition Service (Python)
+  face:
+    build:
+      context: ./ml/face
+      dockerfile: Dockerfile
+    container_name: minak-face
+    ports:
+      - "35002:35002"
+    volumes:
+      - face_models:/app/.insightface/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:35002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - minak-network
+    restart: unless-stopped
+
+  # Liveness Detection Service (Python)
+  liveness:
+    build:
+      context: ./ml/liveness
+      dockerfile: Dockerfile
+    container_name: minak-liveness
+    ports:
+      - "35003:35003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:35003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - minak-network
+    restart: unless-stopped
+
+  # Go API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: minak-api
+    environment:
+      PORT: 38080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-minak}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-minak_secret}
+      DB_NAME: ${POSTGRES_DB:-minak_enta}
+      DB_SSLMODE: disable
+      OCR_SERVICE_URL: http://ocr:35001
+      FACE_SERVICE_URL: http://face:35002
+      LIVENESS_SERVICE_URL: http://liveness:35003
+    ports:
+      - "38080:38080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ocr:
+        condition: service_healthy
+      face:
+        condition: service_healthy
+      liveness:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:38080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - minak-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  face_models:
+    driver: local
+
+networks:
+  minak-network:
+    driver: bridge
