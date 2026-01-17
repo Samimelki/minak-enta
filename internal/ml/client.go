@@ -7,10 +7,20 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
+	"os"
 	"time"
 
 	"github.com/Samimelki/minak-enta/internal/models"
 )
+
+// getEnvOrDefault returns the environment variable value or a default if not set
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 
 type MLClient struct {
 	httpClient *http.Client
@@ -55,12 +65,12 @@ type LivenessResponse struct {
 func NewMLClient() *MLClient {
 	return &MLClient{
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 120 * time.Second, // OCR can take 50+ seconds on first run
 		},
 		baseURLs: map[string]string{
-			"ocr":      "http://localhost:5001",
-			"face":     "http://localhost:5002",
-			"liveness": "http://localhost:5003",
+			"ocr":      getEnvOrDefault("OCR_SERVICE_URL", "http://localhost:35001"),
+			"face":     getEnvOrDefault("FACE_SERVICE_URL", "http://localhost:35002"),
+			"liveness": getEnvOrDefault("LIVENESS_SERVICE_URL", "http://localhost:35003"),
 		},
 	}
 }
@@ -72,8 +82,11 @@ func (c *MLClient) ProcessDocument(imageData []byte, documentType string) (*OCRR
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// Add image file
-	fw, err := w.CreateFormFile("file", "document.jpg")
+	// Add image file with proper content type
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="file"; filename="document.jpg"`)
+	h.Set("Content-Type", "image/jpeg")
+	fw, err := w.CreatePart(h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}
@@ -117,7 +130,10 @@ func (c *MLClient) DetectFaces(imageData []byte) (*FaceDetectResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	fw, err := w.CreateFormFile("file", "face.jpg")
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="file"; filename="face.jpg"`)
+	h.Set("Content-Type", "image/jpeg")
+	fw, err := w.CreatePart(h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}
@@ -156,7 +172,10 @@ func (c *MLClient) ExtractFaceEmbedding(imageData []byte) (*FaceExtractResponse,
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	fw, err := w.CreateFormFile("file", "face.jpg")
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="file"; filename="face.jpg"`)
+	h.Set("Content-Type", "image/jpeg")
+	fw, err := w.CreatePart(h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}
@@ -234,7 +253,10 @@ func (c *MLClient) DetectLiveness(imageData []byte) (*LivenessResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	fw, err := w.CreateFormFile("file", "face.jpg")
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="file"; filename="face.jpg"`)
+	h.Set("Content-Type", "image/jpeg")
+	fw, err := w.CreatePart(h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create form file: %w", err)
 	}

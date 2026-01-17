@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -240,8 +241,7 @@ func (h *Handlers) UploadDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read file data
-	imageData := make([]byte, header.Size)
-	_, err = file.Read(imageData)
+	imageData, err := io.ReadAll(file)
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "FILE_READ_ERROR",
 			"Failed to read uploaded file", nil)
@@ -315,7 +315,11 @@ func (h *Handlers) UploadDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.SaveExtractedData(&ocrResponse.ExtractedData)
+	// Set session_id and side on extracted data before saving
+	extractedData := ocrResponse.ExtractedData
+	extractedData.SessionID = sessionID
+	extractedData.Side = side
+	err = h.store.SaveExtractedData(&extractedData)
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "DATABASE_ERROR",
 			"Failed to save extracted data", nil)
@@ -425,8 +429,7 @@ func (h *Handlers) UploadSelfie(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read file data
-	imageData := make([]byte, header.Size)
-	_, err = file.Read(imageData)
+	imageData, err := io.ReadAll(file)
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "FILE_READ_ERROR",
 			"Failed to read uploaded file", nil)

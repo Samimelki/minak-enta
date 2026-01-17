@@ -291,6 +291,13 @@ func (s *Storage) SaveExtractedData(data *models.ExtractedData) error {
 			gender = EXCLUDED.gender,
 			nationality = EXCLUDED.nationality`
 
+	// Convert empty Gender to nil for database constraint
+	var gender *string
+	if data.Gender != nil && (*data.Gender == "male" || *data.Gender == "female") {
+		g := string(*data.Gender)
+		gender = &g
+	}
+
 	_, err := s.db.Exec(query,
 		data.SessionID,
 		data.Side,
@@ -298,11 +305,12 @@ func (s *Storage) SaveExtractedData(data *models.ExtractedData) error {
 		data.NameLatin,
 		data.DateOfBirth,
 		data.IDNumber,
-		data.Gender,
+		gender,
 		data.Nationality,
 	)
 
 	if err != nil {
+		log.Printf("Database error saving extracted data: %v", err)
 		return fmt.Errorf("failed to save extracted data: %w", err)
 	}
 

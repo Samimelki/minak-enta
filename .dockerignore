@@ -1,0 +1,70 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+*_test.go
+test_*.py
+*.test
+test/
+tests/
+
+# Python virtual environments (large!)
+ml/*/venv/
+ml/*/.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Node modules (if any)
+node_modules/
+
+# Local config
+.env
+.env.local
+*.local
+
+# Build artifacts
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Coverage
+coverage/
+*.cover
+.coverage
+htmlcov/
+
+# Temp files
+tmp/
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Proto generated (will regenerate if needed)
+# gen/
+
+# Scripts (not needed in container)
+scripts/
+
+# Kubernetes manifests (separate deployment)
+deploy/k8s/
